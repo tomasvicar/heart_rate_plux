@@ -87,19 +87,13 @@ for file_num = 1:length(data_names)
 
     threshold = v_max / 4;
     prominence = range / 2;
-    max_rate = 125;
 
     if strcmp(signal_file_name, '..\Sada_02\Gacr_02_020_001_dual_m\Gacr_02_020_001_dual_m.txt')
-        threshold = threshold/1.5;
-        prominence = prominence/1.5;
-    end
-    if strcmp(signal_file_name, '..\Sada_02\Gacr_02_021_001_dual_m\Gacr_02_021_001_dual_m.txt')
-        threshold = threshold/1.2;
-        prominence = prominence/1.2;
-        max_rate = 90;
+        threshold = threshold/2;
+        prominence = prominence/2;
     end
 
-    
+    max_rate = 125;
     [~,detected_qrs_position] = findpeaks( for_detection,'MinPeakHeight',threshold,'MinPeakProminence',prominence,'MinPeakDistance', 1000*(1/(max_rate/60)) );
 
 
@@ -133,11 +127,9 @@ for file_num = 1:length(data_names)
 %     pause(pauza)
 
 
-%     if contains(tmp,'Gacr_02_021_001_dual_m')
+%     if contains(tmp,'Gacr_01_014')
 %         R_positions_frame_idx = 'error - noisy ECG';
 %         R_positions_signal_idx = 'error - noisy ECG';
-%         R_positions_frame_idx_wl1 = 'error - noisy ECG';
-%         R_positions_frame_idx_wl2 = 'error - noisy ECG';
 %         heart_rate = 'error - noisy ECG';
 %     end
 
@@ -146,8 +138,7 @@ for file_num = 1:length(data_names)
     s.R_positions_signal_idx = R_positions_signal_idx;
     s.R_positions_frame_idx_wl1 = R_positions_frame_idx_wl1;
     s.R_positions_frame_idx_wl2 = R_positions_frame_idx_wl2;
-    s.R_positions_signal_idx_all = R_positions_signal_idx_all;
-    s.note = 'index start from 1 (matlab notation); R_positions_frame_idxs are positions of R-wave in video frame units, R_positions_frame_idx_wl1 and wl2 are poistions of R-wave in video frame units of video wl1 or wl2, R_positions_signal_idx is in signal index units, R_positions_signal_idx_all is not croped to video part only';
+    s.note = 'index start from 1 (matlab notation); R_positions_frame_idxs are positions of R-wave in video frame units, R_positions_frame_idx_wl1 and wl2 are poistions of R-wave in video frame units of video wl1 or wl2, R_positions_signal_idx is in signal index units';
 
     json_data = jsonencode(s);
 
