@@ -7,11 +7,9 @@ clc;clear all; close all;
 % path = '../Sada_02';
 % save_path = '../results_vo_rate_Rpos';
 
-path = '../../Sada_03';
-save_path = '../../Sada_03_results_vo_rate_Rpos';
+path = '../../Sada03';
+save_path = '../../Sada03_results_vo_rate_Rpos';
 
-
-gdfggdf
 
 rng(42)
 pauza = 0.5;
@@ -20,29 +18,57 @@ data_names = subdir([path '/*.txt']);
 data_names = {data_names.name};
 
 
+before = [];
+during = [];
+after = [];
+
 for file_num = 1:length(data_names)
 
 
     signal_file_name = data_names{file_num};
     video_file_name = replace(signal_file_name,'.txt','.avi');
+    flicker_file_name = replace(signal_file_name,'.txt','_flicker.json');
+
+
+
+    disp(file_num)
+    disp(video_file_name)
     
     vidObj = VideoReader(video_file_name);
 
     video_num_frames = vidObj.NumFrames;
     fps = vidObj.FrameRate;
 
+    flicker = jsondecode(fileread(flicker_file_name));
+
+
     data = readtable(signal_file_name,'Delimiter',';');
 
+
+    [~, tmp] = min(abs(data.Var1 - duration(flicker.flicker_start(1))));
+    flicker.flicker_start_signal_idx = tmp;
+    [~, tmp] = min(abs(data.Var1 - duration(flicker.flicker_end)));
+    flicker.flicker_end_signal_idx = tmp;
+
     triger = data.Var5;
+
+    triger(1:1200) = triger(1200);
 
     [~,frame_positions_idx] = findpeaks( diff(triger),'MinPeakHeight',10000,'MinPeakDistance', (1000/fps)*0.6 );
     frame_positions_idx(frame_positions_idx < 500) = [];
 
-%     plot(triger);
-%     hold on
-%     plot(frame_positions_time,32820*ones(1,length(frame_positions_time)),'*');
-%     hold off
+    if strcmp(signal_file_name, '..\..\Sada03\Gacr_03_002_01\Gacr_03_002_01.txt')
+
+        frame_positions_idx = [frame_positions_idx(1) - (frame_positions_idx(2) - frame_positions_idx(1)); frame_positions_idx];
+    end
+    
+
+    plot(triger);
+    hold on
+    plot(frame_positions_idx,32820*ones(1,length(frame_positions_idx)),'*');
+    hold off
         
+    % fdgfdgd
 
 
     if length(frame_positions_idx) ~= video_num_frames
@@ -54,17 +80,8 @@ for file_num = 1:length(data_names)
     frame_idx_signal(frame_positions_idx) = 1:length(frame_positions_idx);
     frame_idx_signal = fillmissing(frame_idx_signal,'linear','EndValues','none');
 
-
-    frame_positions_idx_wl1 = frame_positions_idx(1:2:end);
-    frame_idx_signal_wl1 = nan(1,length(triger));
-    frame_idx_signal_wl1(frame_positions_idx_wl1) = 1:length(frame_positions_idx_wl1);
-    frame_idx_signal_wl1 = fillmissing(frame_idx_signal_wl1,'linear','EndValues','none');
-
-
-    frame_positions_idx_wl2 = frame_positions_idx(2:2:end);
-    frame_idx_signal_wl2 = nan(1,length(triger));
-    frame_idx_signal_wl2(frame_positions_idx_wl2) = 1:length(frame_positions_idx_wl2);
-    frame_idx_signal_wl2 = fillmissing(frame_idx_signal_wl2,'linear','EndValues','none');
+    flicker.flicker_start_frame_idx= frame_idx_signal(flicker.flicker_start_signal_idx);
+    flicker.flicker_end_frame_idx= frame_idx_signal(flicker.flicker_end_signal_idx);
 
 
     ecg = data.Var3;
@@ -96,6 +113,18 @@ for file_num = 1:length(data_names)
     prominence = range / 2;
     max_rate = 125;
 
+    if strcmp(signal_file_name, '..\..\Sada03\Gacr_03_014_01\Gacr_03_014_01.txt')
+        threshold = threshold/1.5;
+        prominence = prominence/1.5;
+    end
+    if strcmp(signal_file_name, '..\..\Sada03\Gacr_03_024_01\Gacr_03_024_01.txt')
+        threshold = threshold/1.5;
+        prominence = prominence/1.5;
+    end
+    if strcmp(signal_file_name, '..\..\Sada03\Gacr_03_024_02\Gacr_03_024_02.txt')
+        threshold = threshold/1.8;
+        prominence = prominence/1.8;
+    end
     if strcmp(signal_file_name, '..\Sada_02\Gacr_02_020_001_dual_m\Gacr_02_020_001_dual_m.txt')
         threshold = threshold/1.5;
         prominence = prominence/1.5;
@@ -112,10 +141,20 @@ for file_num = 1:length(data_names)
 
     heart_rate = (1 / ((detected_qrs_position(end) - detected_qrs_position(1)) / (1000 * length(detected_qrs_position))) )* 60;
 
-    
+
+    tmp = detected_qrs_position(detected_qrs_position < flicker.flicker_start_signal_idx);
+    heart_rate_before_flicker = (1 / ((tmp(end) - tmp(1)) / (1000 * length(tmp))) )* 60;
+    tmp = detected_qrs_position((detected_qrs_position > flicker.flicker_start_signal_idx) & (detected_qrs_position < flicker.flicker_end_signal_idx));
+    heart_rate_during_flicker = (1 / ((tmp(end) - tmp(1)) / (1000 * length(tmp))) )* 60;
+    tmp = detected_qrs_position(detected_qrs_position > flicker.flicker_end_signal_idx);
+    heart_rate_after_flicker = (1 / ((tmp(end) - tmp(1)) / (1000 * length(tmp))) )* 60;
+
+
+    before = [before,heart_rate_before_flicker];
+    during = [during,heart_rate_during_flicker];
+    after = [after,heart_rate_after_flicker];
+
     trigger_positions = frame_positions_idx;
-    trigger_positions_wl1 = frame_positions_idx_wl1;
-    trigger_positions_wl2 = frame_positions_idx_wl2;
 
 
     R_positions_frame_idx = frame_idx_signal(detected_qrs_position);
@@ -123,11 +162,7 @@ for file_num = 1:length(data_names)
     R_positions_signal_idx = detected_qrs_position(~isnan(R_positions_frame_idx));
     R_positions_frame_idx = R_positions_frame_idx(~isnan(R_positions_frame_idx))';
 
-    R_positions_frame_idx_wl1 = frame_idx_signal_wl1(detected_qrs_position);
-    R_positions_frame_idx_wl1 = R_positions_frame_idx_wl1(~isnan(R_positions_frame_idx_wl1))';
 
-    R_positions_frame_idx_wl2 = frame_idx_signal_wl2(detected_qrs_position);
-    R_positions_frame_idx_wl2 = R_positions_frame_idx_wl2(~isnan(R_positions_frame_idx_wl2))';
 
 
     hold off
@@ -151,8 +186,6 @@ for file_num = 1:length(data_names)
     s = struct();
     s.R_positions_frame_idx = R_positions_frame_idx;
     s.R_positions_signal_idx = R_positions_signal_idx;
-    s.R_positions_frame_idx_wl1 = R_positions_frame_idx_wl1;
-    s.R_positions_frame_idx_wl2 = R_positions_frame_idx_wl2;
     s.R_positions_signal_idx_all = R_positions_signal_idx_all;
     s.note = 'index start from 1 (matlab notation); R_positions_frame_idxs are positions of R-wave in video frame units, R_positions_frame_idx_wl1 and wl2 are poistions of R-wave in video frame units of video wl1 or wl2, R_positions_signal_idx is in signal index units, R_positions_signal_idx_all is not croped to video part only';
 
@@ -174,6 +207,9 @@ for file_num = 1:length(data_names)
 
     s = struct();
     s.heart_rate = heart_rate;
+    s.heart_rate_before_flicker = heart_rate_before_flicker;
+    s.heart_rate_during_flicker = heart_rate_during_flicker;
+    s.heart_rate_after_flicker = heart_rate_after_flicker;
     s.note = 'beats per minute measured from ecg';
     json_data = jsonencode(s);
 
@@ -193,9 +229,9 @@ for file_num = 1:length(data_names)
 
     s = struct();
     s.trigger_positions = trigger_positions;
-    s.trigger_positions_wl1 = trigger_positions_wl1;
-    s.trigger_positions_wl2 = trigger_positions_wl2;
-    s.note = 'index start from 1 (matlab notation), detected trigger positions, wl1 and wl2 are for 1 and 2 wavelength video';
+    % s.trigger_positions_wl1 = trigger_positions_wl1;
+    % s.trigger_positions_wl2 = trigger_positions_wl2;
+    s.note = 'index start from 1 (matlab notation), detected trigger positions';
     json_data = jsonencode(s);
 
     [~,tmp,~] = fileparts(signal_file_name);
@@ -210,8 +246,31 @@ for file_num = 1:length(data_names)
     fprintf(fileID, json_data);
     fclose(fileID);
 
+
+
+
+    s = flicker;
+    s.note = 'index start from 1 (matlab notation), position of flicker is saved as time/index in signal/index of frame';
+    json_data = jsonencode(s);
+
+    [~,tmp,~] = fileparts(signal_file_name);
+    tmp = replace(tmp,'.txt','');
+    fname = [save_path '/' tmp '/BiosignalAnalysis' '/' tmp  '_flicker_strat_end.json'];
+    
+%     disp(tmp)
+
+    mkdir(fileparts(fname))
+
+    fileID = fopen(fname,'w');
+    fprintf(fileID, json_data);
+    fclose(fileID);
+
+
 end
 
 
+x = [before; during; after];
+
+boxplot(x')
 
 
